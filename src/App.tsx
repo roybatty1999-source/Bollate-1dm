@@ -62,7 +62,6 @@ export default function App() {
     notes: ''
   });
 
-  // Stato per il modale dello storico assenze/infortuni del singolo giocatore
   const [selectedplayerdetail, setSelectedplayerdetail] = useState(null);
 
   useEffect(() => {
@@ -306,7 +305,6 @@ export default function App() {
     });
   }, [players, sessions, attendances]);
 
-  // Calcola la lista delle assenze e infortuni per il giocatore selezionato nel modale dettaglio
   const playerAbsencesDetails = useMemo(() => {
     if (!selectedplayerdetail) return [];
     const details = [];
@@ -322,7 +320,6 @@ export default function App() {
       }
     });
 
-    // Ordina per data decrescente (dal più recente)
     return details.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [selectedplayerdetail, sessions, attendances]);
 
@@ -646,7 +643,7 @@ export default function App() {
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:hidden">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra</h2>
-                <p className="text-xs text-slate-500">Riepilogo generale e individuale delle presenze. (Clicca su un nome per vedere i dettagli di assenze/infortuni)</p>
+                <p className="text-xs text-slate-500">Riepilogo generale e individuale. (Tocca un nome per dettagli assenze/infortuni)</p>
               </div>
               <button
                 onClick={handlePrintStats}
@@ -673,7 +670,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Sezione ottimizzata per entrare interamente in una sola pagina stampata */}
+            {/* Tabella Statistiche Ottimizzata per Mobile (senza scorrimento orizzontale) */}
             <div className="print-section bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none">
               <div className="p-5 border-b border-slate-200 dark:border-slate-700 print:py-1.5 print:px-0">
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm print:text-black">Riepilogo Presenze - Prima Divisione BVA</h3>
@@ -683,31 +680,34 @@ export default function App() {
                 <table className="w-full text-left border-collapse text-xs print:text-[10px] print:text-black">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 border-b border-slate-200 dark:border-slate-700 print:bg-slate-100 print:border-black">
-                      <th className="p-4 font-semibold print:py-1.5 print:px-2">Giocatore</th>
-                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Presenti</th>
-                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Assenti</th>
-                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Infortuni</th>
-                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Ritardi</th>
-                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">% Presenza</th>
+                      <th className="p-3 sm:p-4 font-semibold">Giocatore</th>
+                      <th className="p-2 sm:p-4 font-semibold text-center">Pres.</th>
+                      <th className="p-2 sm:p-4 font-semibold text-center">Ass.</th>
+                      <th className="p-2 sm:p-4 font-semibold text-center">Inf.</th>
+                      <th className="p-2 sm:p-4 font-semibold text-center">Rit.</th>
+                      <th className="p-3 sm:p-4 font-semibold text-center bg-emerald-50/50 dark:bg-emerald-950/30">%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-slate-300">
                     {playerStats.map(stat => (
                       <tr key={stat.id} className="hover:bg-slate-50/50 print:hover:bg-none">
-                        <td className="p-4 font-semibold text-slate-900 dark:text-white print:text-black print:py-1 print:px-2">
+                        <td className="p-3 sm:p-4 font-semibold text-slate-900 dark:text-white print:text-black">
                           <button 
                             onClick={() => setSelectedplayerdetail(stat)}
-                            className="hover:text-emerald-600 dark:hover:text-emerald-400 underline decoration-dotted underline-offset-4 text-left transition-colors cursor-pointer"
+                            className="hover:text-emerald-600 dark:hover:text-emerald-400 underline decoration-dotted underline-offset-4 text-left transition-colors cursor-pointer block"
                             title="Clicca per vedere dettagli assenze/infortuni"
                           >
+                            <span className="text-[10px] text-slate-400 mr-1">#{stat.number || '-'}</span>
                             {stat.first_name} {stat.last_name}
                           </button>
                         </td>
-                        <td className="p-4 text-center font-medium text-emerald-600 print:text-black print:py-1 print:px-2">{stat.present}</td>
-                        <td className="p-4 text-center font-medium text-rose-600 print:text-black print:py-1 print:px-2">{stat.absent}</td>
-                        <td className="p-4 text-center font-medium text-indigo-600 print:text-black print:py-1 print:px-2">{stat.injured}</td>
-                        <td className="p-4 text-center font-medium text-amber-600 print:text-black print:py-1 print:px-2">{stat.late}</td>
-                        <td className="p-4 text-center font-bold text-slate-900 dark:text-white print:text-black print:py-1 print:px-2">{stat.rate}%</td>
+                        <td className="p-2 sm:p-4 text-center font-medium text-emerald-600">{stat.present}</td>
+                        <td className="p-2 sm:p-4 text-center font-medium text-rose-600">{stat.absent}</td>
+                        <td className="p-2 sm:p-4 text-center font-medium text-indigo-600">{stat.injured}</td>
+                        <td className="p-2 sm:p-4 text-center font-medium text-amber-600">{stat.late}</td>
+                        <td className="p-3 sm:p-4 text-center font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50/30 dark:bg-emerald-950/20 text-sm">
+                          {stat.rate}%
+                        </td>
                       </tr>
                     ))}
                   </tbody>
