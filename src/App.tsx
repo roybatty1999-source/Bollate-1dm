@@ -17,7 +17,8 @@ import {
   FileText,
   TrendingUp,
   RefreshCw,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 
 const ROLES = [
@@ -272,6 +273,10 @@ export default function App() {
     }
   };
 
+  const handlePrintStats = () => {
+    window.print();
+  };
+
   const playerStats = useMemo(() => {
     return players.map(player => {
       let present = 0;
@@ -338,8 +343,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200 print:bg-white print:text-black">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
@@ -378,7 +383,7 @@ export default function App() {
         </div>
 
         {/* Navigazione Mobile */}
-        <div className="md:hidden flex overflow-x-auto bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-1.5 gap-1">
+        <div className="md:hidden flex overflow-x-auto bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-1.5 gap-1 print:hidden">
           <button onClick={() => setActivetab('register')} className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activetab === 'register' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Registro
           </button>
@@ -614,6 +619,19 @@ export default function App() {
 
         {activetab === 'stats' && (
           <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:shadow-none print:border-none print:p-0">
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra</h2>
+                <p className="text-xs text-slate-500">Riepilogo generale e individuale delle presenze.</p>
+              </div>
+              <button
+                onClick={handlePrintStats}
+                className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all print:hidden shadow-sm active:scale-95"
+              >
+                <Printer className="w-4 h-4" /> Stampa / PDF
+              </button>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold text-xl"><TrendingUp className="w-6 h-6" /></div>
@@ -652,7 +670,7 @@ export default function App() {
                     {playerStats.map(stat => (
                       <tr key={stat.id} className="hover:bg-slate-50/50">
                         <td className="p-4 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px]">#{stat.number || '-'}</span>
+                          <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] print:border">#{stat.number || '-'}</span>
                           {stat.first_name} {stat.last_name}
                         </td>
                         <td className="p-4 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getRole(stat.role).badge}`}>{getRole(stat.role).code}</span></td>
@@ -672,7 +690,7 @@ export default function App() {
       </main>
 
       {showsessionmodal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
               {editingsession ? 'Modifica Allenamento' : 'Nuovo Allenamento'}
@@ -702,7 +720,7 @@ export default function App() {
       )}
 
       {showplayermodal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{editingplayer ? 'Modifica Giocatore' : 'Nuovo Giocatore'}</h3>
             <form onSubmit={handleSavePlayer} className="space-y-4">
