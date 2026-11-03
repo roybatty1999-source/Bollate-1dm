@@ -19,7 +19,8 @@ import {
   RefreshCw,
   ChevronRight,
   Printer,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 
 const ROLES = [
@@ -41,6 +42,8 @@ const normalizeRole = (role) => {
 
 export default function App() {
   const [activetab, setActivetab] = useState('register');
+  const [teams, setTeams] = useState([]);
+  const [selectedteamid, setSelectedteamid] = useState('');
   const [players, setPlayers] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [attendances, setAttendances] = useState([]);
@@ -62,6 +65,9 @@ export default function App() {
     notes: ''
   });
 
+  const [showteammodal, setShowteammodal] = useState(false);
+  const [teamform, setTeamform] = useState({ name: '' });
+
   const [selectedplayerdetail, setSelectedplayerdetail] = useState(null);
 
   useEffect(() => {
@@ -71,9 +77,23 @@ export default function App() {
   const loadSupabaseData = async () => {
     setLoading(true);
     try {
+      const { data: teamsData } = await supabase.from('teams').select('*');
       const { data: playersData } = await supabase.from('players').select('*');
       const { data: sessionsData } = await supabase.from('training_sessions').select('*');
       const { data: attendancesData } = await supabase.from('attendances').select('*');
+
+      if (teamsData && teamsData.length > 0) {
+        setTeams(teamsData);
+        if (!selectedteamid) {
+          setSelectedteamid(teamsData[0].id);
+        }
+      } else {
+        const { data: newTeam } = await supabase.from('teams').insert([{ name: 'Prima Divisione' }]).select();
+        if (newTeam && newTeam.length > 0) {
+          setTeams(newTeam);
+          setSelectedteamid(newTeam[0].id);
+        }
+      }
 
       if (playersData) {
         setPlayers(playersData.map(p => ({ ...p, role: normalizeRole(p.role) })));
@@ -94,6 +114,11 @@ export default function App() {
     setLoading(false);
   };
 
+  const currentTeamPlayers = useMemo(() => {
+    if (!selectedteamid) return players;
+    return players.filter(p => p.team_id === selectedteamid);
+  }, [players, selectedteamid]);
+
   const currentSession = useMemo(() => {
     const session = sessions.find(s => s.id === selectedsessionid) || null;
     if (!session) return null;
@@ -107,6 +132,22 @@ export default function App() {
 
     return { ...session, attendance: sessionAttendances };
   }, [sessions, attendances, selectedsessionid]);
+
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
+    if (!teamform.name.trim()) return;
+
+    const { data, error } = await supabase.from('teams').insert([{ name: teamform.name }]).select();
+    if (!error && data && data.length > 0) {
+      setTeams([...teams, data[0]]);
+      setSelectedteamid(data[0].id);
+      setShowteammodal(false);
+      setTeamform({ name: '' });
+      loadSupabaseData();
+    } else {
+      alert("Errore nella creazione della squadra");
+    }
+  };
 
   const handleCreateSession = async (e) => {
     e.preventDefault();
@@ -209,7 +250,7 @@ export default function App() {
   const handleBulkAttendance = async (status) => {
     if (!selectedsessionid) return;
 
-    for (const player of players) {
+    for (const player of currentTeamPlayers) {
       const existingAtt = attendances.find(
         att => att.session_id === selectedsessionid && att.player_id === player.id
       );
@@ -230,10 +271,15 @@ export default function App() {
 
   const handleSavePlayer = async (e) => {
     e.preventDefault();
+    if (!selectedteamid) {
+      alert("Seleziona prima una squadra!");
+      return;
+    }
+
     if (editingplayer) {
       const { error } = await supabase
         .from('players')
-        .update({ first_name: playerform.firstname, last_name: playerform.lastname, role: playerform.role, number: playerform.number })
+        .update({ first_name: playerform.firstname, last_name: playerform.lastname, role: playerform.role, number: playerform.number, team_id: selectedteamid })
         .eq('id', editingplayer.id);
 
       if (!error) {
@@ -245,7 +291,7 @@ export default function App() {
     } else {
       const { error } = await supabase
         .from('players')
-        .insert([{ first_name: playerform.firstname, last_name: playerform.lastname, role: playerform.role, number: playerform.number }]);
+        .insert([{ first_name: playerform.firstname, last_name: playerform.lastname, role: playerform.role, number: playerform.number, team_id: selectedteamid }]);
 
       if (!error) {
         setShowplayermodal(false);
@@ -281,7 +327,7 @@ export default function App() {
   };
 
   const playerStats = useMemo(() => {
-    return players.map(player => {
+    return currentTeamPlayers.map(player => {
       let present = 0;
       let absent = 0;
       let late = 0;
@@ -303,7 +349,7 @@ export default function App() {
 
       return { ...player, present, absent, late, injured, totalSessions, rate };
     });
-  }, [players, sessions, attendances]);
+  }, [currentTeamPlayers, sessions, attendances]);
 
   const playerAbsencesDetails = useMemo(() => {
     if (!selectedplayerdetail) return [];
@@ -324,12 +370,12 @@ export default function App() {
   }, [selectedplayerdetail, sessions, attendances]);
 
   const globalStats = useMemo(() => {
-    if (sessions.length === 0 || players.length === 0) return { avgAttendance: 0, totalSessions: 0 };
-    let totalPossible = sessions.length * players.length;
+    if (sessions.length === 0 || currentTeamPlayers.length === 0) return { avgAttendance: 0, totalSessions: 0 };
+    let totalPossible = sessions.length * currentTeamPlayers.length;
     let totalPresent = 0;
 
     sessions.forEach(session => {
-      players.forEach(player => {
+      currentTeamPlayers.forEach(player => {
         const att = attendances.find(a => a.session_id === session.id && a.player_id === player.id);
         if (att && (att.status === 'present' || att.status === 'late')) {
           totalPresent++;
@@ -341,16 +387,16 @@ export default function App() {
       avgAttendance: totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0,
       totalSessions: sessions.length
     };
-  }, [sessions, players, attendances]);
+  }, [sessions, currentTeamPlayers, attendances]);
 
   const filteredPlayers = useMemo(() => {
-    return players.filter(p => {
+    return currentTeamPlayers.filter(p => {
       const fullname = `${p.first_name} ${p.last_name} ${p.number || ''}`.toLowerCase();
       const matchesSearch = fullname.includes(searchplayer.toLowerCase());
       const matchesRole = rolefilter === 'all' || p.role === rolefilter;
       return matchesSearch && matchesRole;
     });
-  }, [players, searchplayer, rolefilter]);
+  }, [currentTeamPlayers, searchplayer, rolefilter]);
 
   if (loading) {
     return (
@@ -363,6 +409,8 @@ export default function App() {
     );
   }
 
+  const currentTeam = teams.find(t => t.id === selectedteamid);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm print:hidden">
@@ -372,9 +420,22 @@ export default function App() {
               <img src="/bva-logo.webp" alt="Bollate Volley Academy" width={48} height={48} className="w-12 h-12 object-contain" />
               <div>
                 <h1 className="text-base sm:text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  Prima Divisione Presenze
+                  Gestione Presenze BVA
                 </h1>
-                <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400">Cloud Supabase</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <select 
+                    value={selectedteamid} 
+                    onChange={(e) => setSelectedteamid(e.target.value)}
+                    className="text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg px-2 py-0.5 focus:outline-none"
+                  >
+                    {teams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => setShowteammodal(true)} className="text-[10px] text-slate-400 hover:text-emerald-600 underline">
+                    + Nuova Squadra
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -384,7 +445,7 @@ export default function App() {
                 <CheckCircle2 className="w-4 h-4" /> Registro
               </button>
               <button onClick={() => setActivetab('players')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'players' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
-                <Users className="w-4 h-4" /> Rosa ({players.length})
+                <Users className="w-4 h-4" /> Rosa ({currentTeamPlayers.length})
               </button>
               <button onClick={() => setActivetab('history')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'history' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
                 <Calendar className="w-4 h-4" /> Allenamenti
@@ -427,7 +488,7 @@ export default function App() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="flex-1">
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
-                    Seleziona Sessione di Allenamento
+                    Seleziona Sessione di Allenamento ({currentTeam?.name})
                   </label>
                   {sessions.length > 0 ? (
                     <select
@@ -463,7 +524,7 @@ export default function App() {
               <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row gap-3 justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                   <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    Appello Giocatori <span className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full text-slate-700 dark:text-slate-300">{players.length}</span>
+                    Appello Rosa: {currentTeam?.name} <span className="text-xs bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full text-slate-700 dark:text-slate-300">{currentTeamPlayers.length}</span>
                   </h3>
                   <div className="relative w-full sm:w-64">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -528,7 +589,7 @@ export default function App() {
                       );
                     })
                   ) : (
-                    <div className="p-8 text-center text-slate-500">Nessun giocatore trovato.</div>
+                    <div className="p-8 text-center text-slate-500">Nessun giocatore in questa rosa. Aggiungine uno dalla tab "Rosa"!</div>
                   )}
                 </div>
               </div>
@@ -549,7 +610,7 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Rosa Giocatori</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Rosa Giocatori: {currentTeam?.name}</h2>
                 <p className="text-xs text-slate-500">Gestisci i membri della squadra sul database.</p>
               </div>
               <button onClick={() => { setEditingplayer(null); setPlayerform({ firstname: '', lastname: '', role: DEFAULT_ROLE, number: '' }); setShowplayermodal(true); }} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all">
@@ -640,10 +701,10 @@ export default function App() {
 
         {activetab === 'stats' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:hidden">
               <div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra</h2>
-                <p className="text-xs text-slate-500">Riepilogo generale e individuale. (Tocca un nome per dettagli assenze/infortuni)</p>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra: {currentTeam?.name}</h2>
+                <p className="text-xs text-slate-500">Riepilogo dedicato alla rosa selezionata. (Tocca un nome per dettagli assenze/infortuni)</p>
               </div>
               <button
                 onClick={handlePrintStats}
@@ -657,7 +718,7 @@ export default function App() {
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold text-xl"><TrendingUp className="w-6 h-6" /></div>
                 <div>
-                  <p className="text-xs text-slate-500 font-medium uppercase">Media Presenze di Squadra</p>
+                  <p className="text-xs text-slate-500 font-medium uppercase">Media Presenze ({currentTeam?.name})</p>
                   <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{globalStats.avgAttendance}%</h3>
                 </div>
               </div>
@@ -670,10 +731,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tabella Statistiche Ottimizzata per Mobile (senza scorrimento orizzontale) */}
+            {/* Tabella Statistiche Ottimizzata per Mobile */}
             <div className="print-section bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none">
               <div className="p-5 border-b border-slate-200 dark:border-slate-700 print:py-1.5 print:px-0">
-                <h3 className="font-bold text-slate-900 dark:text-white text-sm print:text-black">Riepilogo Presenze - Prima Divisione BVA</h3>
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm print:text-black">Riepilogo Presenze - {currentTeam?.name}</h3>
                 <p className="text-[10px] text-slate-500 hidden print:block">Allenamenti totali: {globalStats.totalSessions} | Media squadra: {globalStats.avgAttendance}%</p>
               </div>
               <div className="overflow-x-auto">
@@ -785,6 +846,25 @@ export default function App() {
         </div>
       )}
 
+      {/* Modale Creazione Nuova Squadra */}
+      {showteammodal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Crea Nuova Squadra / Rosa</h3>
+            <form onSubmit={handleCreateTeam} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome Squadra / Categoria</label>
+                <input type="text" placeholder="Es. Under 18 / Serie D..." value={teamform.name} onChange={(e) => setTeamform({ name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowteammodal(false)} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
+                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Crea</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {showsessionmodal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
@@ -818,7 +898,7 @@ export default function App() {
       {showplayermodal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{editingplayer ? 'Modifica Giocatore' : 'Nuovo Giocatore'}</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{editingplayer ? 'Modifica Giocatore' : `Nuovo Giocatore (${currentTeam?.name})`}</h3>
             <form onSubmit={handleSavePlayer} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome</label>
