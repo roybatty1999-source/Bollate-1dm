@@ -704,7 +704,7 @@ export default function App() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:hidden">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra: {currentTeam?.name}</h2>
-                <p className="text-xs text-slate-500">Riepilogo dedicato alla rosa selezionata. (Tocca un nome per dettagli assenze/infortuni)</p>
+                <p className="text-xs text-slate-500">Riepilogo dedicato alla rosa selezionata. (I giocatori sotto il 75% hanno lo sfondo rosso chiaro)</p>
               </div>
               <button
                 onClick={handlePrintStats}
@@ -731,7 +731,7 @@ export default function App() {
               </div>
             </div>
 
-            {/* Tabella Statistiche Ottimizzata per Mobile */}
+            {/* Tabella Statistiche Ottimizzata per Mobile con evidenziazione sotto il 75% */}
             <div className="print-section bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none">
               <div className="p-5 border-b border-slate-200 dark:border-slate-700 print:py-1.5 print:px-0">
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm print:text-black">Riepilogo Presenze - {currentTeam?.name}</h3>
@@ -750,27 +750,41 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-slate-300">
-                    {playerStats.map(stat => (
-                      <tr key={stat.id} className="hover:bg-slate-50/50 print:hover:bg-none">
-                        <td className="p-3 sm:p-4 font-semibold text-slate-900 dark:text-white print:text-black">
-                          <button 
-                            onClick={() => setSelectedplayerdetail(stat)}
-                            className="hover:text-emerald-600 dark:hover:text-emerald-400 underline decoration-dotted underline-offset-4 text-left transition-colors cursor-pointer block"
-                            title="Clicca per vedere dettagli assenze/infortuni"
-                          >
-                            <span className="text-[10px] text-slate-400 mr-1">#{stat.number || '-'}</span>
-                            {stat.first_name} {stat.last_name}
-                          </button>
-                        </td>
-                        <td className="p-2 sm:p-4 text-center font-medium text-emerald-600">{stat.present}</td>
-                        <td className="p-2 sm:p-4 text-center font-medium text-rose-600">{stat.absent}</td>
-                        <td className="p-2 sm:p-4 text-center font-medium text-indigo-600">{stat.injured}</td>
-                        <td className="p-2 sm:p-4 text-center font-medium text-amber-600">{stat.late}</td>
-                        <td className="p-3 sm:p-4 text-center font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-50/30 dark:bg-emerald-950/20 text-sm">
-                          {stat.rate}%
-                        </td>
-                      </tr>
-                    ))}
+                    {playerStats.map(stat => {
+                      const isLowAttendance = stat.rate < 75;
+                      return (
+                        <tr 
+                          key={stat.id} 
+                          className={`transition-colors ${
+                            isLowAttendance 
+                              ? 'bg-rose-50/70 dark:bg-rose-950/30 hover:bg-rose-100/70 dark:hover:bg-rose-900/40' 
+                              : 'hover:bg-slate-50/50 print:hover:bg-none'
+                          }`}
+                        >
+                          <td className="p-3 sm:p-4 font-semibold text-slate-900 dark:text-white print:text-black">
+                            <button 
+                              onClick={() => setSelectedplayerdetail(stat)}
+                              className="hover:text-emerald-600 dark:hover:text-emerald-400 underline decoration-dotted underline-offset-4 text-left transition-colors cursor-pointer block"
+                              title="Clicca per vedere dettagli assenze/infortuni"
+                            >
+                              <span className="text-[10px] text-slate-400 mr-1">#{stat.number || '-'}</span>
+                              {stat.first_name} {stat.last_name}
+                            </button>
+                          </td>
+                          <td className="p-2 sm:p-4 text-center font-medium text-emerald-600">{stat.present}</td>
+                          <td className="p-2 sm:p-4 text-center font-medium text-rose-600">{stat.absent}</td>
+                          <td className="p-2 sm:p-4 text-center font-medium text-indigo-600">{stat.injured}</td>
+                          <td className="p-2 sm:p-4 text-center font-medium text-amber-600">{stat.late}</td>
+                          <td className={`p-3 sm:p-4 text-center font-extrabold text-sm ${
+                            isLowAttendance 
+                              ? 'text-rose-700 dark:text-rose-300 bg-rose-100/60 dark:bg-rose-900/40' 
+                              : 'text-emerald-700 dark:text-emerald-300 bg-emerald-50/30 dark:bg-emerald-950/20'
+                          }`}>
+                            {stat.rate}%
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
