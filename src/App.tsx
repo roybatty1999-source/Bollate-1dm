@@ -63,12 +63,17 @@ export default function App() {
     loadSupabaseData();
   }, []);
 
-  const loadSupabaseData = async () => {
+ const loadSupabaseData = async () => {
     setLoading(true);
     try {
-      const { data: playersData } = await supabase.from('players').select('*').order('first_name', { ascending: true });
-      const { data: sessionsData } = await supabase.from('training_sessions').select('*').order('date', { ascending: false });
-      const { data: attendancesData } = await supabase.from('attendances').select('*');
+      // Semplifichiamo la query iniziale senza filtri complessi per evitare errori 404 sull'URL
+      const { data: playersData, error: playersError } = await supabase.from('players').select('*');
+      const { data: sessionsData, error: sessionsError } = await supabase.from('training_sessions').select('*');
+      const { data: attendancesData, error: attendancesError } = await supabase.from('attendances').select('*');
+
+      if (playersError) console.error('Errore tabella players:', playersError);
+      if (sessionsError) console.error('Errore tabella training_sessions:', sessionsError);
+      if (attendancesError) console.error('Errore tabella attendances:', attendancesError);
 
       if (playersData) {
         setPlayers(playersData.map(p => ({ ...p, role: normalizeRole(p.role) })));
@@ -83,7 +88,7 @@ export default function App() {
         setAttendances(attendancesData);
       }
     } catch (error) {
-      console.error('Errore nel caricamento da Supabase:', error);
+      console.error('Errore generale nel caricamento da Supabase:', error);
     }
     setLoading(false);
   };
