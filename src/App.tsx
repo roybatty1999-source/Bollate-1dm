@@ -53,6 +53,7 @@ export default function App() {
   const [playerform, setPlayerform] = useState({ firstname: '', lastname: '', role: DEFAULT_ROLE, number: '' });
 
   const [showsessionmodal, setShowsessionmodal] = useState(false);
+  const [editingsession, setEditingsession] = useState(null);
   const [sessionform, setSessionform] = useState({
     date: new Date().toISOString().split('T')[0],
     time: '18:30',
@@ -63,32 +64,28 @@ export default function App() {
     loadSupabaseData();
   }, []);
 
- const loadSupabaseData = async () => {
+  const loadSupabaseData = async () => {
     setLoading(true);
     try {
-      // Semplifichiamo la query iniziale senza filtri complessi per evitare errori 404 sull'URL
-      const { data: playersData, error: playersError } = await supabase.from('players').select('*');
-      const { data: sessionsData, error: sessionsError } = await supabase.from('training_sessions').select('*');
-      const { data: attendancesData, error: attendancesError } = await supabase.from('attendances').select('*');
-
-      if (playersError) console.error('Errore tabella players:', playersError);
-      if (sessionsError) console.error('Errore tabella training_sessions:', sessionsError);
-      if (attendancesError) console.error('Errore tabella attendances:', attendancesError);
+      const { data: playersData } = await supabase.from('players').select('*');
+      const { data: sessionsData } = await supabase.from('training_sessions').select('*');
+      const { data: attendancesData } = await supabase.from('attendances').select('*');
 
       if (playersData) {
         setPlayers(playersData.map(p => ({ ...p, role: normalizeRole(p.role) })));
       }
       if (sessionsData) {
-        setSessions(sessionsData);
-        if (sessionsData.length > 0 && !selectedsessionid) {
-          setSelectedsessionid(sessionsData[0].id);
+        const sortedSessions = sessionsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setSessions(sortedSessions);
+        if (sortedSessions.length > 0 && !selectedsessionid) {
+          setSelectedsessionid(sortedSessions[0].id);
         }
       }
       if (attendancesData) {
         setAttendances(attendancesData);
       }
     } catch (error) {
-      console.error('Errore generale nel caricamento da Supabase:', error);
+      console.error('Errore nel caricamento da Supabase:', error);
     }
     setLoading(false);
   };
@@ -129,6 +126,29 @@ export default function App() {
       loadSupabaseData();
     } else {
       alert('Errore nella creazione della sessione');
+    }
+  };
+
+  const handleUpdateSession = async (e) => {
+    e.preventDefault();
+    if (!editingsession) return;
+
+    const { error } = await supabase
+      .from('training_sessions')
+      .update({
+        date: sessionform.date,
+        time: sessionform.time,
+        notes: sessionform.notes
+      })
+      .eq('id', editingsession.id);
+
+    if (!error) {
+      setEditingsession(null);
+      setShowsessionmodal(false);
+      setSessionform({ date: new Date().toISOString().split('T')[0], time: '18:30', notes: '' });
+      loadSupabaseData();
+    } else {
+      alert("Errore durante l'aggiornamento dell'allenamento");
     }
   };
 
@@ -258,16 +278,17 @@ export default function App() {
       let absent = 0;
       let late = 0;
       let injured = 0;
-      let totalSessions = 0;
+      let totalSessions = sessions.length;
 
       sessions.forEach(session => {
         const att = attendances.find(a => a.session_id === session.id && a.player_id === player.id);
         if (att) {
-          totalSessions++;
           if (att.status === 'present') present++;
           else if (att.status === 'absent') absent++;
           else if (att.status === 'late') late++;
           else if (att.status === 'injured') injured++;
+        } else {
+          absent++;
         }
       });
 
@@ -283,10 +304,13 @@ export default function App() {
     let totalPossible = sessions.length * players.length;
     let totalPresent = 0;
 
-    attendances.forEach(att => {
-      if (att.status === 'present' || att.status === 'late') {
-        totalPresent++;
-      }
+    sessions.forEach(session => {
+      players.forEach(player => {
+        const att = attendances.find(a => a.session_id === session.id && a.player_id === player.id);
+        if (att && (att.status === 'present' || att.status === 'late')) {
+          totalPresent++;
+        }
+      });
     });
 
     return {
@@ -315,7 +339,7 @@ export default function App() {
     );
   }
 
-return (
+  return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -347,7 +371,7 @@ return (
             </nav>
 
             <div className="flex items-center gap-2">
-              <button onClick={() => setShowsessionmodal(true)} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium shadow-md transition-all active:scale-95">
+              <button onClick={() => { setEditingsession(null); setSessionform({ date: new Date().toISOString().split('T')[0], time: '18:30', notes: '' }); setShowsessionmodal(true); }} className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs sm:text-sm font-medium shadow-md transition-all active:scale-95">
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Nuovo Allenamento</span>
               </button>
@@ -355,7 +379,7 @@ return (
           </div>
         </div>
 
-        {/* Barra di Navigazione Mobile (fissa o scorrevole in alto sotto l'header) */}
+        {/* Navigazione Mobile */}
         <div className="md:hidden flex overflow-x-auto bg-slate-100 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 p-1.5 gap-1">
           <button onClick={() => setActivetab('register')} className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${activetab === 'register' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
             <CheckCircle2 className="w-3.5 h-3.5" /> Registro
@@ -489,7 +513,7 @@ return (
                 <Calendar className="w-12 h-12 mx-auto text-slate-400 mb-3" />
                 <h3 className="text-lg font-medium text-slate-900 dark:text-white">Nessuna sessione di allenamento</h3>
                 <p className="text-sm text-slate-500 mb-4">Crea il tuo primo allenamento per iniziare.</p>
-                <button onClick={() => setShowsessionmodal(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all">
+                <button onClick={() => { setEditingsession(null); setSessionform({ date: new Date().toISOString().split('T')[0], time: '18:30', notes: '' }); setShowsessionmodal(true); }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all">
                   Crea Allenamento Ora
                 </button>
               </div>
@@ -562,7 +586,21 @@ return (
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1 rounded-full">
                         <Calendar className="w-3.5 h-3.5" /> {new Date(s.date).toLocaleDateString('it-IT')}
                       </span>
-                      <button onClick={() => handleDeleteSession(s.id)} className="text-slate-400 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                      <div className="flex items-center gap-1">
+                        <button 
+                          onClick={() => {
+                            setEditingsession(s);
+                            setSessionform({ date: s.date, time: s.time, notes: s.notes || '' });
+                            setShowsessionmodal(true);
+                          }} 
+                          className="p-1 text-slate-400 hover:text-emerald-600 transition-colors"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => handleDeleteSession(s.id)} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Orario: {s.time}</p>
                     {s.notes && <p className="text-xs text-slate-500 mt-2 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">{s.notes}</p>}
@@ -636,8 +674,10 @@ return (
       {showsessionmodal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Nuovo Allenamento</h3>
-            <form onSubmit={handleCreateSession} className="space-y-4">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
+              {editingsession ? 'Modifica Allenamento' : 'Nuovo Allenamento'}
+            </h3>
+            <form onSubmit={editingsession ? handleUpdateSession : handleCreateSession} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Data</label>
                 <input type="date" value={sessionform.date} onChange={(e) => setSessionform({ ...sessionform, date: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
@@ -651,8 +691,10 @@ return (
                 <input type="text" placeholder="Es. Rifinitura / Palestra..." value={sessionform.notes} onChange={(e) => setSessionform({ ...sessionform, notes: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
               <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowsessionmodal(false)} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
-                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Crea</button>
+                <button type="button" onClick={() => { setEditingsession(null); setShowsessionmodal(false); }} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
+                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
+                  {editingsession ? 'Salva Modifiche' : 'Crea'}
+                </button>
               </div>
             </form>
           </div>
@@ -665,11 +707,11 @@ return (
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{editingplayer ? 'Modifica Giocatore' : 'Nuovo Giocatore'}</h3>
             <form onSubmit={handleSavePlayer} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome (first_name)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome</label>
                 <input type="text" value={playerform.firstname} onChange={(e) => setPlayerform({ ...playerform, firstname: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Cognome (last_name)</label>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Cognome</label>
                 <input type="text" value={playerform.lastname} onChange={(e) => setPlayerform({ ...playerform, lastname: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
               </div>
               <div className="grid grid-cols-2 gap-3">
