@@ -64,6 +64,7 @@ export default function App() {
   }, []);
 
   const loadSupabaseData = async () => {
+    console.log("Avvio caricamento da Supabase...");
     setLoading(true);
     try {
       const { data: playersData } = await supabase.from('players').select('*').order('first_name', { ascending: true });
