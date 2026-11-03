@@ -740,7 +740,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Numero Maglia</label>
-                  <input type="text" value.value={playerform.number} onChange={(e) => setPlayerform({ ...playerform, number: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <input type="text" value={playerform.number} onChange={(e) => setPlayerform({ ...playerform, number: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
