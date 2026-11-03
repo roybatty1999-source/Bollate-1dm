@@ -16,12 +16,8 @@ import {
   UserX,
   FileText,
   TrendingUp,
-  Award,
-  ChevronRight,
-  Save,
-  Download,
-  Upload,
-  RefreshCw
+  RefreshCw,
+  ChevronRight
 } from 'lucide-react';
 
 const ROLES = [
@@ -42,28 +38,27 @@ const normalizeRole = (role) => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('register');
+  const [activetab, setActivetab] = useState('register');
   const [players, setPlayers] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [attendances, setAttendances] = useState([]);
-  const [selectedSessionId, setSelectedSessionId] = useState('');
+  const [selectedsessionid, setSelectedsessionid] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const [searchPlayer, setSearchPlayer] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
+  const [searchplayer, setSearchplayer] = useState('');
+  const [rolefilter, setRolefilter] = useState('all');
 
-  const [showPlayerModal, setShowPlayerModal] = useState(false);
-  const [editingPlayer, setEditingPlayer] = useState(null);
-  const [playerForm, setPlayerForm] = useState({ name: '', surname: '', role: DEFAULT_ROLE, number: '' });
+  const [showplayermodal, setShowplayermodal] = useState(false);
+  const [editingplayer, setEditingplayer] = useState(null);
+  const [playerform, setPlayerform] = useState({ firstname: '', lastname: '', role: DEFAULT_ROLE, number: '' });
 
-  const [showSessionModal, setShowSessionModal] = useState(false);
-  const [sessionForm, setSessionForm] = useState({
+  const [showsessionmodal, setShowsessionmodal] = useState(false);
+  const [sessionform, setSessionform] = useState({
     date: new Date().toISOString().split('T')[0],
     time: '18:30',
     notes: ''
   });
 
-  // Caricamento dati da Supabase all'avvio
   useEffect(() => {
     loadSupabaseData();
   }, []);
@@ -71,7 +66,7 @@ export default function App() {
   const loadSupabaseData = async () => {
     setLoading(true);
     try {
-      const { data: playersData } = await supabase.from('players').select('*').order('name', { ascending: true });
+      const { data: playersData } = await supabase.from('players').select('*').order('first_name', { ascending: true });
       const { data: sessionsData } = await supabase.from('training_sessions').select('*').order('date', { ascending: false });
       const { data: attendancesData } = await supabase.from('attendances').select('*');
 
@@ -80,8 +75,8 @@ export default function App() {
       }
       if (sessionsData) {
         setSessions(sessionsData);
-        if (sessionsData.length > 0 && !selectedSessionId) {
-          setSelectedSessionId(sessionsData[0].id);
+        if (sessionsData.length > 0 && !selectedsessionid) {
+          setSelectedsessionid(sessionsData[0].id);
         }
       }
       if (attendancesData) {
@@ -93,29 +88,26 @@ export default function App() {
     setLoading(false);
   };
 
-  // Sessione corrente elaborata con le presenze collegate
   const currentSession = useMemo(() => {
-    const session = sessions.find(s => s.id === selectedSessionId) || null;
+    const session = sessions.find(s => s.id === selectedsessionid) || null;
     if (!session) return null;
 
-    // Mappa le presenze della sessione corrente in un oggetto { playerId: { status, note } }
     const sessionAttendances = {};
     attendances
-      .filter(att => att.session_id === selectedSessionId)
+      .filter(att => att.session_id === selectedsessionid)
       .forEach(att => {
         sessionAttendances[att.player_id] = { status: att.status, note: att.note || '' };
       });
 
     return { ...session, attendance: sessionAttendances };
-  }, [sessions, attendances, selectedSessionId]);
+  }, [sessions, attendances, selectedsessionid]);
 
-  // Creazione Nuova Sessione su Supabase
   const handleCreateSession = async (e) => {
     e.preventDefault();
     const newSessionPayload = {
-      date: sessionForm.date,
-      time: sessionForm.time,
-      notes: sessionForm.notes
+      date: sessionform.date,
+      time: sessionform.time,
+      notes: sessionform.notes
     };
 
     const { data, error } = await supabase
@@ -126,21 +118,20 @@ export default function App() {
     if (!error && data && data.length > 0) {
       const createdSession = data[0];
       setSessions([createdSession, ...sessions]);
-      setSelectedSessionId(createdSession.id);
-      setShowSessionModal(false);
-      setSessionForm({ date: new Date().toISOString().split('T')[0], time: '18:30', notes: '' });
+      setSelectedsessionid(createdSession.id);
+      setShowsessionmodal(false);
+      setSessionform({ date: new Date().toISOString().split('T')[0], time: '18:30', notes: '' });
       loadSupabaseData();
     } else {
       alert('Errore nella creazione della sessione');
     }
   };
 
-  // Cambio Stato Presenza o Nota su Supabase
   const handleAttendanceChange = async (playerId, status) => {
-    if (!selectedSessionId) return;
+    if (!selectedsessionid) return;
 
     const existingAtt = attendances.find(
-      att => att.session_id === selectedSessionId && att.player_id === playerId
+      att => att.session_id === selectedsessionid && att.player_id === playerId
     );
 
     const currentNote = existingAtt ? existingAtt.note : '';
@@ -155,17 +146,17 @@ export default function App() {
     } else {
       const { error } = await supabase
         .from('attendances')
-        .insert([{ session_id: selectedSessionId, player_id: playerId, status, note: '' }]);
+        .insert([{ session_id: selectedsessionid, player_id: playerId, status, note: '' }]);
 
       if (!error) loadSupabaseData();
     }
   };
 
   const handleNoteChange = async (playerId, note) => {
-    if (!selectedSessionId) return;
+    if (!selectedsessionid) return;
 
     const existingAtt = attendances.find(
-      att => att.session_id === selectedSessionId && att.player_id === playerId
+      att => att.session_id === selectedsessionid && att.player_id === playerId
     );
 
     const currentStatus = existingAtt ? existingAtt.status : 'present';
@@ -180,19 +171,18 @@ export default function App() {
     } else {
       const { error } = await supabase
         .from('attendances')
-        .insert([{ session_id: selectedSessionId, player_id: playerId, status: 'present', note }]);
+        .insert([{ session_id: selectedsessionid, player_id: playerId, status: 'present', note }]);
 
       if (!error) loadSupabaseData();
     }
   };
 
-  // Presenza di massa
   const handleBulkAttendance = async (status) => {
-    if (!selectedSessionId) return;
+    if (!selectedsessionid) return;
 
     for (const player of players) {
       const existingAtt = attendances.find(
-        att => att.session_id === selectedSessionId && att.player_id === player.id
+        att => att.session_id === selectedsessionid && att.player_id === player.id
       );
 
       if (existingAtt) {
@@ -203,44 +193,43 @@ export default function App() {
       } else {
         await supabase
           .from('attendances')
-          .insert([{ session_id: selectedSessionId, player_id: player.id, status, note: '' }]);
+          .insert([{ session_id: selectedsessionid, player_id: player.id, status, note: '' }]);
       }
     }
     loadSupabaseData();
   };
 
-  // Gestione Giocatori su Supabase
   const handleSavePlayer = async (e) => {
     e.preventDefault();
-    if (editingPlayer) {
+    if (editingplayer) {
       const { error } = await supabase
         .from('players')
-        .update({ name: playerForm.name, surname: playerForm.surname, role: playerForm.role, number: playerForm.number })
-        .eq('id', editingPlayer.id);
+        .update({ first_name: playerform.firstname, last_name: playerform.lastname, role: playerform.role, number: playerform.number })
+        .eq('id', editingplayer.id);
 
       if (!error) {
-        setShowPlayerModal(false);
-        setEditingPlayer(null);
-        setPlayerForm({ name: '', surname: '', role: DEFAULT_ROLE, number: '' });
+        setShowplayermodal(false);
+        setEditingplayer(null);
+        setPlayerform({ firstname: '', lastname: '', role: DEFAULT_ROLE, number: '' });
         loadSupabaseData();
       }
     } else {
       const { error } = await supabase
         .from('players')
-        .insert([{ name: playerForm.name, surname: playerForm.surname, role: playerForm.role, number: playerForm.number }]);
+        .insert([{ first_name: playerform.firstname, last_name: playerform.lastname, role: playerform.role, number: playerform.number }]);
 
       if (!error) {
-        setShowPlayerModal(false);
-        setPlayerForm({ name: '', surname: '', role: DEFAULT_ROLE, number: '' });
+        setShowplayermodal(false);
+        setPlayerform({ firstname: '', lastname: '', role: DEFAULT_ROLE, number: '' });
         loadSupabaseData();
       }
     }
   };
 
   const handleEditPlayer = (player) => {
-    setEditingPlayer(player);
-    setPlayerForm({ name: player.name, surname: player.surname, role: player.role, number: player.number });
-    setShowPlayerModal(true);
+    setEditingplayer(player);
+    setPlayerform({ firstname: player.first_name, lastname: player.last_name, role: player.role, number: player.number || '' });
+    setShowplayermodal(true);
   };
 
   const handleDeletePlayer = async (id) => {
@@ -258,7 +247,6 @@ export default function App() {
     }
   };
 
-  // Statistiche e filtri
   const playerStats = useMemo(() => {
     return players.map(player => {
       let present = 0;
@@ -304,11 +292,12 @@ export default function App() {
 
   const filteredPlayers = useMemo(() => {
     return players.filter(p => {
-      const matchesSearch = `${p.name} ${p.surname} ${p.number}`.toLowerCase().includes(searchPlayer.toLowerCase());
-      const matchesRole = roleFilter === 'all' || p.role === roleFilter;
+      const fullname = `${p.first_name} ${p.last_name} ${p.number || ''}`.toLowerCase();
+      const matchesSearch = fullname.includes(searchplayer.toLowerCase());
+      const matchesRole = rolefilter === 'all' || p.role === rolefilter;
       return matchesSearch && matchesRole;
     });
-  }, [players, searchPlayer, roleFilter]);
+  }, [players, searchplayer, rolefilter]);
 
   if (loading) {
     return (
@@ -323,8 +312,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
-      
-      {/* HEADER / NAVIGATION */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -339,40 +326,30 @@ export default function App() {
             </div>
 
             <nav className="hidden md:flex space-x-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
-              <button onClick={() => setActiveTab('register')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'register' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
+              <button onClick={() => setActivetab('register')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'register' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
                 <CheckCircle2 className="w-4 h-4" /> Registro Presenze
               </button>
-              <button onClick={() => setActiveTab('players')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'players' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
+              <button onClick={() => setActivetab('players')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'players' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
                 <Users className="w-4 h-4" /> Rosa Giocatori ({players.length})
               </button>
-              <button onClick={() => setActiveTab('history')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'history' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
+              <button onClick={() => setActivetab('history')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'history' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
                 <Calendar className="w-4 h-4" /> Allenamenti ({sessions.length})
               </button>
-              <button onClick={() => setActiveTab('stats')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'stats' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
+              <button onClick={() => setActivetab('stats')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'stats' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
                 <BarChart3 className="w-4 h-4" /> Statistiche
               </button>
             </nav>
 
-            <button onClick={() => setShowSessionModal(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium shadow-md transition-all active:scale-95">
+            <button onClick={() => setShowsessionmodal(true)} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-sm font-medium shadow-md transition-all active:scale-95">
               <Plus className="w-4 h-4" />
               <span className="hidden sm:inline">Nuovo Allenamento</span>
             </button>
           </div>
         </div>
-
-        <div className="flex md:hidden border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 justify-around">
-          <button onClick={() => setActiveTab('register')} className={`flex flex-col items-center py-1.5 px-3 text-xs font-medium rounded-lg ${activeTab === 'register' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}><CheckCircle2 className="w-5 h-5" /><span>Presenze</span></button>
-          <button onClick={() => setActiveTab('players')} className={`flex flex-col items-center py-1.5 px-3 text-xs font-medium rounded-lg ${activeTab === 'players' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}><Users className="w-5 h-5" /><span>Rosa</span></button>
-          <button onClick={() => setActiveTab('history')} className={`flex flex-col items-center py-1.5 px-3 text-xs font-medium rounded-lg ${activeTab === 'history' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}><Calendar className="w-5 h-5" /><span>Storico</span></button>
-          <button onClick={() => setActiveTab('stats')} className={`flex flex-col items-center py-1.5 px-3 text-xs font-medium rounded-lg ${activeTab === 'stats' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}><BarChart3 className="w-5 h-5" /><span>Stats</span></button>
-        </div>
       </header>
 
-      {/* CONTENUTO PRINCIPALE */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-
-        {/* 1. REGISTRO PRESENZE */}
-        {activeTab === 'register' && (
+        {activetab === 'register' && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -382,8 +359,8 @@ export default function App() {
                   </label>
                   {sessions.length > 0 ? (
                     <select
-                      value={selectedSessionId}
-                      onChange={(e) => setSelectedSessionId(e.target.value)}
+                      value={selectedsessionid}
+                      onChange={(e) => setSelectedsessionid(e.target.value)}
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     >
                       {sessions.map(s => (
@@ -421,8 +398,8 @@ export default function App() {
                     <input
                       type="text"
                       placeholder="Cerca giocatore..."
-                      value={searchPlayer}
-                      onChange={(e) => setSearchPlayer(e.target.value)}
+                      value={searchplayer}
+                      onChange={(e) => setSearchplayer(e.target.value)}
                       className="w-full bg-white dark:bg-slate-900 text-xs rounded-xl pl-9 pr-3 py-2 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -433,16 +410,16 @@ export default function App() {
                     filteredPlayers.map(player => {
                       const att = currentSession.attendance[player.id] || { status: 'present', note: '' };
                       return (
-                        <div key={player.id} className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/80 dark:hover:bg-slate-750 transition-colors">
+                        <div key={player.id} className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-slate-50/80 transition-colors">
                           <div className="flex items-center gap-3.5 min-w-[220px]">
                             <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold flex items-center justify-center text-sm shadow-inner shrink-0">
                               #{player.number || '-'}
                             </div>
                             <div>
                               <h4 className="font-semibold text-slate-900 dark:text-white leading-tight">
-                                {player.name} {player.surname}
+                                {player.first_name} {player.last_name}
                               </h4>
-                              <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-medium">
+                              <span className="mt-1 inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                                 <span className={`inline-flex items-center justify-center w-5 h-5 rounded-md text-[10px] font-bold ${getRole(player.role).badge}`}>
                                   {getRole(player.role).code}
                                 </span>
@@ -484,11 +461,11 @@ export default function App() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700">
+              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300">
                 <Calendar className="w-12 h-12 mx-auto text-slate-400 mb-3" />
                 <h3 className="text-lg font-medium text-slate-900 dark:text-white">Nessuna sessione di allenamento</h3>
-                <p className="text-sm text-slate-500 mb-4">Crea il tuo primo allenamento per iniziare a segnare le presenze.</p>
-                <button onClick={() => setShowSessionModal(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all">
+                <p className="text-sm text-slate-500 mb-4">Crea il tuo primo allenamento per iniziare.</p>
+                <button onClick={() => setShowsessionmodal(true)} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all">
                   Crea Allenamento Ora
                 </button>
               </div>
@@ -496,15 +473,14 @@ export default function App() {
           </div>
         )}
 
-        {/* 2. ROSA GIOCATORI */}
-        {activeTab === 'players' && (
+        {activetab === 'players' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Rosa Giocatori</h2>
                 <p className="text-xs text-slate-500">Gestisci i membri della squadra sul database.</p>
               </div>
-              <button onClick={() => { setEditingPlayer(null); setPlayerForm({ name: '', surname: '', role: DEFAULT_ROLE, number: '' }); setShowPlayerModal(true); }} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all">
+              <button onClick={() => { setEditingplayer(null); setPlayerform({ firstname: '', lastname: '', role: DEFAULT_ROLE, number: '' }); setShowplayermodal(true); }} className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold shadow-md transition-all">
                 <Plus className="w-4 h-4" /> Aggiungi Giocatore
               </button>
             </div>
@@ -512,9 +488,9 @@ export default function App() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="text" placeholder="Cerca per nome o numero..." value={searchPlayer} onChange={(e) => setSearchPlayer(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-sm rounded-xl pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                <input type="text" placeholder="Cerca per nome o numero..." value={searchplayer} onChange={(e) => setSearchplayer(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-sm rounded-xl pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
               </div>
-              <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-sm rounded-xl px-4 py-2.5 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+              <select value={rolefilter} onChange={(e) => setRolefilter(e.target.value)} className="w-full bg-white dark:bg-slate-800 text-sm rounded-xl px-4 py-2.5 border border-slate-200 dark:border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 <option value="all">Tutti i ruoli</option>
                 {ROLES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
               </select>
@@ -530,7 +506,7 @@ export default function App() {
                         #{player.number || '-'}
                       </div>
                       <div>
-                        <h4 className="font-semibold text-slate-900 dark:text-white">{player.name} {player.surname}</h4>
+                        <h4 className="font-semibold text-slate-900 dark:text-white">{player.first_name} {player.last_name}</h4>
                         <span className={`mt-1 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${roleObj.badge}`}>
                           {roleObj.label}
                         </span>
@@ -547,8 +523,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 3. STORICO ALLENAMENTI */}
-        {activeTab === 'history' && (
+        {activetab === 'history' && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">Storico Allenamenti ({sessions.length})</h2>
@@ -568,7 +543,7 @@ export default function App() {
                     <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Orario: {s.time}</p>
                     {s.notes && <p className="text-xs text-slate-500 mt-2 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">{s.notes}</p>}
                   </div>
-                  <button onClick={() => { setSelectedSessionId(s.id); setActiveTab('register'); }} className="mt-4 w-full flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-200 py-2 rounded-xl text-xs font-semibold transition-all">
+                  <button onClick={() => { setSelectedsessionid(s.id); setActivetab('register'); }} className="mt-4 w-full flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-200 py-2 rounded-xl text-xs font-semibold transition-all">
                     Visualizza Registro <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -577,125 +552,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 4. STATISTICHE */}
-        {activeTab === 'stats' && (
+        {activetab === 'stats' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold text-xl"><TrendingUp className="w-6 h-6" /></div>
-                <div>
-                  <p className="text-xs text-slate-500 font-medium uppercase">Media Presenze di Squadra</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{globalStats.avgAttendance}%</h3>
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center font-bold text-xl"><Calendar className="w-6 h-6" /></div>
-                <div>
-                  <p className="text-xs text-slate-500 font-medium uppercase">Allenamenti Totali</p>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{globalStats.totalSessions}</h3>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-              <div className="p-5 border-b border-slate-200 dark:border-slate-700">
-                <h3 className="font-bold text-slate-900 dark:text-white">Riepilogo Individuale Giocatori</h3>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 border-b border-slate-200 dark:border-slate-700">
-                      <th className="p-4 font-semibold">Giocatore</th>
-                      <th className="p-4 font-semibold text-center">Ruolo</th>
-                      <th className="p-4 font-semibold text-center">Presenti</th>
-                      <th className="p-4 font-semibold text-center">Assenti</th>
-                      <th className="p-4 font-semibold text-center">Ritardi</th>
-                      <th className="p-4 font-semibold text-center">% Presenza</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                    {playerStats.map(stat => (
-                      <tr key={stat.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-750">
-                        <td className="p-4 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px]">#{stat.number || '-'}</span>
-                          {stat.name} {stat.surname}
-                        </td>
-                        <td className="p-4 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getRole(stat.role).badge}`}>{getRole(stat.role).code}</span></td>
-                        <td className="p-4 text-center font-medium text-emerald-600">{stat.present}</td>
-                        <td className="p-4 text-center font-medium text-rose-600">{stat.absent}</td>
-                        <td className="p-4 text-center font-medium text-amber-600">{stat.late}</td>
-                        <td className="p-4 text-center font-bold text-slate-900 dark:text-white">{stat.rate}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* MODALE NUOVO ALLENAMENTO */}
-      {showSessionModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Nuovo Allenamento</h3>
-            <form onSubmit={handleCreateSession} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Data</label>
-                <input type="date" value={sessionForm.date} onChange={(e) => setSessionForm({ ...sessionForm, date: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Orario</label>
-                <input type="text" value={sessionForm.time} onChange={(e) => setSessionForm({ ...sessionForm, time: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Note (opzionale)</label>
-                <input type="text" placeholder="Es. Rifinitura / Palestra..." value={sessionForm.notes} onChange={(e) => setSessionForm({ ...sessionForm, notes: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowSessionModal(false)} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
-                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Crea</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODALE GIOCATORE */}
-      {showPlayerModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{editingPlayer ? 'Modifica Giocatore' : 'Nuovo Giocatore'}</h3>
-            <form onSubmit={handleSavePlayer} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome</label>
-                <input type="text" value={playerForm.name} onChange={(e) => setPlayerForm({ ...playerForm, name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Cognome</label>
-                <input type="text" value={playerForm.surname} onChange={(e) => setPlayerForm({ ...playerForm, surname: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Ruolo</label>
-                  <select value={playerForm.role} onChange={(e) => setPlayerForm({ ...playerForm, role: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    {ROLES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Numero Maglia</label>
-                  <input type="text" value={playerForm.number} onChange={(e) => setPlayerForm({ ...playerForm, number: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
-                </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowPlayerModal(false)} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
-                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Salva</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+              <div className="bg-white dark:bg-slate-800
