@@ -101,9 +101,6 @@ export default function App() {
       if (sessionsData) {
         const sortedSessions = sessionsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setSessions(sortedSessions);
-        if (sortedSessions.length > 0 && !selectedsessionid) {
-          setSelectedsessionid(sortedSessions[0].id);
-        }
       }
       if (attendancesData) {
         setAttendances(attendancesData);
@@ -114,13 +111,32 @@ export default function App() {
     setLoading(false);
   };
 
+  // Giocatori filtrati per la squadra selezionata
   const currentTeamPlayers = useMemo(() => {
     if (!selectedteamid) return players;
     return players.filter(p => p.team_id === selectedteamid);
   }, [players, selectedteamid]);
 
+  // Allenamenti filtrati per la squadra selezionata
+  const currentTeamSessions = useMemo(() => {
+    if (!selectedteamid) return sessions;
+    return sessions.filter(s => s.team_id === selectedteamid);
+  }, [sessions, selectedteamid]);
+
+  // Seleziona automaticamente il primo allenamento della squadra quando cambia team
+  useEffect(() => {
+    if (currentTeamSessions.length > 0) {
+      const exists = currentTeamSessions.some(s => s.id === selectedsessionid);
+      if (!exists) {
+        setSelectedsessionid(currentTeamSessions[0].id);
+      }
+    } else {
+      setSelectedsessionid('');
+    }
+  }, [selectedteamid, currentTeamSessions]);
+
   const currentSession = useMemo(() => {
-    const session = sessions.find(s => s.id === selectedsessionid) || null;
+    const session = currentTeamSessions.find(s => s.id === selectedsessionid) || null;
     if (!session) return null;
 
     const sessionAttendances = {};
@@ -131,7 +147,7 @@ export default function App() {
       });
 
     return { ...session, attendance: sessionAttendances };
-  }, [sessions, attendances, selectedsessionid]);
+  }, [currentTeamSessions, attendances, selectedsessionid]);
 
   const handleCreateTeam = async (e) => {
     e.preventDefault();
@@ -151,10 +167,16 @@ export default function App() {
 
   const handleCreateSession = async (e) => {
     e.preventDefault();
+    if (!selectedteamid) {
+      alert("Seleziona prima una squadra!");
+      return;
+    }
+
     const newSessionPayload = {
       date: sessionform.date,
       time: sessionform.time,
-      notes: sessionform.notes
+      notes: sessionform.notes,
+      team_id: selectedteamid
     };
 
     const { data, error } = await supabase
@@ -332,9 +354,9 @@ export default function App() {
       let absent = 0;
       let late = 0;
       let injured = 0;
-      let totalSessions = sessions.length;
+      let totalSessions = currentTeamSessions.length;
 
-      sessions.forEach(session => {
+      currentTeamSessions.forEach(session => {
         const att = attendances.find(a => a.session_id === session.id && a.player_id === player.id);
         if (att) {
           if (att.status === 'present') present++;
@@ -349,13 +371,13 @@ export default function App() {
 
       return { ...player, present, absent, late, injured, totalSessions, rate };
     });
-  }, [currentTeamPlayers, sessions, attendances]);
+  }, [currentTeamPlayers, currentTeamSessions, attendances]);
 
   const playerAbsencesDetails = useMemo(() => {
     if (!selectedplayerdetail) return [];
     const details = [];
 
-    sessions.forEach(session => {
+    currentTeamSessions.forEach(session => {
       const att = attendances.find(a => a.session_id === session.id && a.player_id === selectedplayerdetail.id);
       if (att) {
         if (att.status === 'absent') {
@@ -367,14 +389,14 @@ export default function App() {
     });
 
     return details.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [selectedplayerdetail, sessions, attendances]);
+  }, [selectedplayerdetail, currentTeamSessions, attendances]);
 
   const globalStats = useMemo(() => {
-    if (sessions.length === 0 || currentTeamPlayers.length === 0) return { avgAttendance: 0, totalSessions: 0 };
-    let totalPossible = sessions.length * currentTeamPlayers.length;
+    if (currentTeamSessions.length === 0 || currentTeamPlayers.length === 0) return { avgAttendance: 0, totalSessions: 0 };
+    let totalPossible = currentTeamSessions.length * currentTeamPlayers.length;
     let totalPresent = 0;
 
-    sessions.forEach(session => {
+    currentTeamSessions.forEach(session => {
       currentTeamPlayers.forEach(player => {
         const att = attendances.find(a => a.session_id === session.id && a.player_id === player.id);
         if (att && (att.status === 'present' || att.status === 'late')) {
@@ -385,9 +407,9 @@ export default function App() {
 
     return {
       avgAttendance: totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0,
-      totalSessions: sessions.length
+      totalSessions: currentTeamSessions.length
     };
-  }, [sessions, currentTeamPlayers, attendances]);
+  }, [currentTeamSessions, currentTeamPlayers, attendances]);
 
   const filteredPlayers = useMemo(() => {
     return currentTeamPlayers.filter(p => {
@@ -448,7 +470,7 @@ export default function App() {
                 <Users className="w-4 h-4" /> Rosa ({currentTeamPlayers.length})
               </button>
               <button onClick={() => setActivetab('history')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'history' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
-                <Calendar className="w-4 h-4" /> Allenamenti
+                <Calendar className="w-4 h-4" /> Allenamenti ({currentTeamSessions.length})
               </button>
               <button onClick={() => setActivetab('stats')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activetab === 'stats' ? 'bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
                 <BarChart3 className="w-4 h-4" /> Statistiche
@@ -490,20 +512,20 @@ export default function App() {
                   <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">
                     Seleziona Sessione di Allenamento ({currentTeam?.name})
                   </label>
-                  {sessions.length > 0 ? (
+                  {currentTeamSessions.length > 0 ? (
                     <select
                       value={selectedsessionid}
                       onChange={(e) => setSelectedsessionid(e.target.value)}
                       className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     >
-                      {sessions.map(s => (
+                      {currentTeamSessions.map(s => (
                         <option key={s.id} value={s.id}>
                           {new Date(s.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} - Ore {s.time} {s.notes ? `(${s.notes})` : ''}
                         </option>
                       ))}
                     </select>
                   ) : (
-                    <p className="text-sm text-slate-500 italic">Nessuna sessione creata. Creane una nuova!</p>
+                    <p className="text-sm text-slate-500 italic">Nessuna sessione creata per questa squadra. Creane una nuova!</p>
                   )}
                 </div>
 
@@ -597,7 +619,7 @@ export default function App() {
               <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300">
                 <Calendar className="w-12 h-12 mx-auto text-slate-400 mb-3" />
                 <h3 className="text-lg font-medium text-slate-900 dark:text-white">Nessuna sessione di allenamento</h3>
-                <p className="text-sm text-slate-500 mb-4">Crea il tuo primo allenamento per iniziare.</p>
+                <p className="text-sm text-slate-500 mb-4">Crea il tuo primo allenamento per questa squadra.</p>
                 <button onClick={() => { setEditingsession(null); setSessionform({ date: new Date().toISOString().split('T')[0], time: '18:30', notes: '' }); setShowsessionmodal(true); }} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700 transition-all">
                   Crea Allenamento Ora
                 </button>
@@ -659,42 +681,49 @@ export default function App() {
         {activetab === 'history' && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Storico Allenamenti ({sessions.length})</h2>
-              <p className="text-xs text-slate-500">Elenco di tutte le sessioni registrate.</p>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">Storico Allenamenti: {currentTeam?.name} ({currentTeamSessions.length})</h2>
+              <p className="text-xs text-slate-500">Elenco di tutte le sessioni registrate per questa squadra.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {sessions.map(s => (
-                <div key={s.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-3">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1 rounded-full">
-                        <Calendar className="w-3.5 h-3.5" /> {new Date(s.date).toLocaleDateString('it-IT')}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={() => {
-                            setEditingsession(s);
-                            setSessionform({ date: s.date, time: s.time, notes: s.notes || '' });
-                            setShowsessionmodal(true);
-                          }} 
-                          className="p-1 text-slate-400 hover:text-emerald-600 transition-colors"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDeleteSession(s.id)} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+              {currentTeamSessions.length > 0 ? (
+                currentTeamSessions.map(s => (
+                  <div key={s.id} className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start mb-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 px-3 py-1 rounded-full">
+                          <Calendar className="w-3.5 h-3.5" /> {new Date(s.date).toLocaleDateString('it-IT')}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => {
+                              setEditingsession(s);
+                              setSessionform({ date: s.date, time: s.time, notes: s.notes || '' });
+                              setShowsessionmodal(true);
+                            }} 
+                            className="p-1 text-slate-400 hover:text-emerald-600 transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => handleDeleteSession(s.id)} className="p-1 text-slate-400 hover:text-rose-600 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Orario: {s.time}</p>
+                      {s.notes && <p className="text-xs text-slate-500 mt-2 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">{s.notes}</p>}
                     </div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Orario: {s.time}</p>
-                    {s.notes && <p className="text-xs text-slate-500 mt-2 bg-slate-50 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">{s.notes}</p>}
+                    <button onClick={() => { setSelectedsessionid(s.id); setActivetab('register'); }} className="mt-4 w-full flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-200 py-2 rounded-xl text-xs font-semibold transition-all">
+                      Visualizza Registro <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button onClick={() => { setSelectedsessionid(s.id); setActivetab('register'); }} className="mt-4 w-full flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-700 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-200 py-2 rounded-xl text-xs font-semibold transition-all">
-                    Visualizza Registro <ChevronRight className="w-4 h-4" />
-                  </button>
+                ))
+              ) : (
+                <div className="col-span-full py-12 text-center text-slate-500 bg-white dark:bg-slate-800 rounded-2xl border border-dashed border-slate-300">
+                  <Calendar className="w-12 h-12 mx-auto text-slate-400 mb-3" />
+                  <p className="text-sm">Nessun allenamento registrato per {currentTeam?.name}.</p>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
@@ -883,7 +912,7 @@ export default function App() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">
-              {editingsession ? 'Modifica Allenamento' : 'Nuovo Allenamento'}
+              {editingsession ? 'Modifica Allenamento' : `Nuovo Allenamento (${currentTeam?.name})`}
             </h3>
             <form onSubmit={editingsession ? handleUpdateSession : handleCreateSession} className="space-y-4">
               <div>
