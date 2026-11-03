@@ -343,7 +343,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200 print:bg-white print:text-black">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200">
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
@@ -399,7 +399,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 print:p-0 print:m-0 print:max-w-none">
         {activetab === 'register' && (
           <div className="space-y-6">
             <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
@@ -619,7 +619,7 @@ export default function App() {
 
         {activetab === 'stats' && (
           <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:shadow-none print:border-none print:p-0">
+            <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:hidden">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra</h2>
                 <p className="text-xs text-slate-500">Riepilogo generale e individuale delle presenze.</p>
@@ -628,11 +628,11 @@ export default function App() {
                 onClick={handlePrintStats}
                 className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all print:hidden shadow-sm active:scale-95"
               >
-                <Printer className="w-4 h-4" /> Stampa / PDF
+                <Printer className="w-4 h-4" /> Stampa Tabella
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 print:hidden">
               <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold text-xl"><TrendingUp className="w-6 h-6" /></div>
                 <div>
@@ -649,36 +649,35 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-              <div className="p-5 border-b border-slate-200 dark:border-slate-700">
-                <h3 className="font-bold text-slate-900 dark:text-white">Riepilogo Individuale Giocatori</h3>
+            {/* Sezione ottimizzata per entrare interamente in una sola pagina stampata */}
+            <div className="print-section bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none">
+              <div className="p-5 border-b border-slate-200 dark:border-slate-700 print:py-1.5 print:px-0">
+                <h3 className="font-bold text-slate-900 dark:text-white text-sm print:text-black">Riepilogo Presenze - Prima Divisione BVA</h3>
+                <p className="text-[10px] text-slate-500 hidden print:block">Allenamenti totali: {globalStats.totalSessions} | Media squadra: {globalStats.avgAttendance}%</p>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs">
+                <table className="w-full text-left border-collapse text-xs print:text-[10px] print:text-black">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 border-b border-slate-200 dark:border-slate-700">
-                      <th className="p-4 font-semibold">Giocatore</th>
-                      <th className="p-4 font-semibold text-center">Ruolo</th>
-                      <th className="p-4 font-semibold text-center">Presenti</th>
-                      <th className="p-4 font-semibold text-center">Assenti</th>
-                      <th className="p-4 font-semibold text-center">Ritardi</th>
-                      <th className="p-4 font-semibold text-center">Infortuni</th>
-                      <th className="p-4 font-semibold text-center">% Presenza</th>
+                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 border-b border-slate-200 dark:border-slate-700 print:bg-slate-100 print:border-black">
+                      <th className="p-4 font-semibold print:py-1.5 print:px-2">Giocatore</th>
+                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Presenti</th>
+                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Assenti</th>
+                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Infortuni</th>
+                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">Ritardi</th>
+                      <th className="p-4 font-semibold text-center print:py-1.5 print:px-2">% Presenza</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-slate-300">
                     {playerStats.map(stat => (
-                      <tr key={stat.id} className="hover:bg-slate-50/50">
-                        <td className="p-4 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px] print:border">#{stat.number || '-'}</span>
+                      <tr key={stat.id} className="hover:bg-slate-50/50 print:hover:bg-none">
+                        <td className="p-4 font-semibold text-slate-900 dark:text-white print:text-black print:py-1 print:px-2">
                           {stat.first_name} {stat.last_name}
                         </td>
-                        <td className="p-4 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getRole(stat.role).badge}`}>{getRole(stat.role).code}</span></td>
-                        <td className="p-4 text-center font-medium text-emerald-600">{stat.present}</td>
-                        <td className="p-4 text-center font-medium text-rose-600">{stat.absent}</td>
-                        <td className="p-4 text-center font-medium text-amber-600">{stat.late}</td>
-                        <td className="p-4 text-center font-medium text-indigo-600">{stat.injured}</td>
-                        <td className="p-4 text-center font-bold text-slate-900 dark:text-white">{stat.rate}%</td>
+                        <td className="p-4 text-center font-medium text-emerald-600 print:text-black print:py-1 print:px-2">{stat.present}</td>
+                        <td className="p-4 text-center font-medium text-rose-600 print:text-black print:py-1 print:px-2">{stat.absent}</td>
+                        <td className="p-4 text-center font-medium text-indigo-600 print:text-black print:py-1 print:px-2">{stat.injured}</td>
+                        <td className="p-4 text-center font-medium text-amber-600 print:text-black print:py-1 print:px-2">{stat.late}</td>
+                        <td className="p-4 text-center font-bold text-slate-900 dark:text-white print:text-black print:py-1 print:px-2">{stat.rate}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -741,7 +740,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Numero Maglia</label>
-                  <input type="text" value={playerform.number} onChange={(e) => setPlayerform({ ...playerform, number: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <input type="text" value.value={playerform.number} onChange={(e) => setPlayerform({ ...playerform, number: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-4">
@@ -752,6 +751,44 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Regole CSS per forzare la stampa in una singola pagina A4 verticale */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            size: portrait;
+            margin: 5mm;
+          }
+          body, html {
+            width: 100%;
+            height: 100%;
+            font-size: 10px;
+            background: white !important;
+            color: black !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .print-section, .print-section * {
+            visibility: visible;
+          }
+          .print-section {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-height: 100vh;
+            overflow: hidden;
+            page-break-inside: avoid;
+          }
+          table {
+            font-size: 10px !important;
+          }
+          th, td {
+            padding: 4px 6px !important;
+          }
+        }
+      `}} />
     </div>
   );
 }
