@@ -555,4 +555,119 @@ export default function App() {
         {activetab === 'stats' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-white dark:bg-slate-800
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-600 flex items-center justify-center font-bold text-xl"><TrendingUp className="w-6 h-6" /></div>
+                <div>
+                  <p className="text-xs text-slate-500 font-medium uppercase">Media Presenze di Squadra</p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{globalStats.avgAttendance}%</h3>
+                </div>
+              </div>
+              <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 flex items-center justify-center font-bold text-xl"><Calendar className="w-6 h-6" /></div>
+                <div>
+                  <p className="text-xs text-slate-500 font-medium uppercase">Allenamenti Totali</p>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{globalStats.totalSessions}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+              <div className="p-5 border-b border-slate-200 dark:border-slate-700">
+                <h3 className="font-bold text-slate-900 dark:text-white">Riepilogo Individuale Giocatori</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                      <th className="p-4 font-semibold">Giocatore</th>
+                      <th className="p-4 font-semibold text-center">Ruolo</th>
+                      <th className="p-4 font-semibold text-center">Presenti</th>
+                      <th className="p-4 font-semibold text-center">Assenti</th>
+                      <th className="p-4 font-semibold text-center">Ritardi</th>
+                      <th className="p-4 font-semibold text-center">% Presenza</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {playerStats.map(stat => (
+                      <tr key={stat.id} className="hover:bg-slate-50/50">
+                        <td className="p-4 font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-[10px]">#{stat.number || '-'}</span>
+                          {stat.first_name} {stat.last_name}
+                        </td>
+                        <td className="p-4 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${getRole(stat.role).badge}`}>{getRole(stat.role).code}</span></td>
+                        <td className="p-4 text-center font-medium text-emerald-600">{stat.present}</td>
+                        <td className="p-4 text-center font-medium text-rose-600">{stat.absent}</td>
+                        <td className="p-4 text-center font-medium text-amber-600">{stat.late}</td>
+                        <td className="p-4 text-center font-bold text-slate-900 dark:text-white">{stat.rate}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+
+      {showsessionmodal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Nuovo Allenamento</h3>
+            <form onSubmit={handleCreateSession} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Data</label>
+                <input type="date" value={sessionform.date} onChange={(e) => setSessionform({ ...sessionform, date: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Orario</label>
+                <input type="text" value={sessionform.time} onChange={(e) => setSessionform({ ...sessionform, time: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Note (opzionale)</label>
+                <input type="text" placeholder="Es. Rifinitura / Palestra..." value={sessionform.notes} onChange={(e) => setSessionform({ ...sessionform, notes: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowsessionmodal(false)} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
+                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Crea</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showplayermodal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">{editingplayer ? 'Modifica Giocatore' : 'Nuovo Giocatore'}</h3>
+            <form onSubmit={handleSavePlayer} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Nome (first_name)</label>
+                <input type="text" value={playerform.firstname} onChange={(e) => setPlayerform({ ...playerform, firstname: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Cognome (last_name)</label>
+                <input type="text" value={playerform.lastname} onChange={(e) => setPlayerform({ ...playerform, lastname: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Ruolo</label>
+                  <select value={playerform.role} onChange={(e) => setPlayerform({ ...playerform, role: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    {ROLES.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1">Numero Maglia</label>
+                  <input type="text" value={playerform.number} onChange={(e) => setPlayerform({ ...playerform, number: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-900 text-sm rounded-xl px-4 py-2.5 border border-slate-300 dark:border-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4">
+                <button type="button" onClick={() => setShowplayermodal(false)} className="px-4 py-2 rounded-xl text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Annulla</button>
+                <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">Salva</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
