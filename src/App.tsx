@@ -18,7 +18,8 @@ import {
   TrendingUp,
   RefreshCw,
   ChevronRight,
-  Printer
+  Printer,
+  X
 } from 'lucide-react';
 
 const ROLES = [
@@ -60,6 +61,9 @@ export default function App() {
     time: '18:30',
     notes: ''
   });
+
+  // Stato per il modale dello storico assenze/infortuni del singolo giocatore
+  const [selectedplayerdetail, setSelectedplayerdetail] = useState(null);
 
   useEffect(() => {
     loadSupabaseData();
@@ -301,6 +305,26 @@ export default function App() {
       return { ...player, present, absent, late, injured, totalSessions, rate };
     });
   }, [players, sessions, attendances]);
+
+  // Calcola la lista delle assenze e infortuni per il giocatore selezionato nel modale dettaglio
+  const playerAbsencesDetails = useMemo(() => {
+    if (!selectedplayerdetail) return [];
+    const details = [];
+
+    sessions.forEach(session => {
+      const att = attendances.find(a => a.session_id === session.id && a.player_id === selectedplayerdetail.id);
+      if (att) {
+        if (att.status === 'absent') {
+          details.push({ date: session.date, status: 'assente', note: att.note });
+        } else if (att.status === 'injured') {
+          details.push({ date: session.date, status: 'infortunato', note: att.note });
+        }
+      }
+    });
+
+    // Ordina per data decrescente (dal più recente)
+    return details.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [selectedplayerdetail, sessions, attendances]);
 
   const globalStats = useMemo(() => {
     if (sessions.length === 0 || players.length === 0) return { avgAttendance: 0, totalSessions: 0 };
@@ -622,7 +646,7 @@ export default function App() {
             <div className="flex justify-between items-center bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm print:hidden">
               <div>
                 <h2 className="text-lg font-bold text-slate-900 dark:text-white">Statistiche Squadra</h2>
-                <p className="text-xs text-slate-500">Riepilogo generale e individuale delle presenze.</p>
+                <p className="text-xs text-slate-500">Riepilogo generale e individuale delle presenze. (Clicca su un nome per vedere i dettagli di assenze/infortuni)</p>
               </div>
               <button
                 onClick={handlePrintStats}
@@ -671,7 +695,13 @@ export default function App() {
                     {playerStats.map(stat => (
                       <tr key={stat.id} className="hover:bg-slate-50/50 print:hover:bg-none">
                         <td className="p-4 font-semibold text-slate-900 dark:text-white print:text-black print:py-1 print:px-2">
-                          {stat.first_name} {stat.last_name}
+                          <button 
+                            onClick={() => setSelectedplayerdetail(stat)}
+                            className="hover:text-emerald-600 dark:hover:text-emerald-400 underline decoration-dotted underline-offset-4 text-left transition-colors cursor-pointer"
+                            title="Clicca per vedere dettagli assenze/infortuni"
+                          >
+                            {stat.first_name} {stat.last_name}
+                          </button>
                         </td>
                         <td className="p-4 text-center font-medium text-emerald-600 print:text-black print:py-1 print:px-2">{stat.present}</td>
                         <td className="p-4 text-center font-medium text-rose-600 print:text-black print:py-1 print:px-2">{stat.absent}</td>
@@ -687,6 +717,73 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Modale Dettaglio Assenze / Infortuni Giocatore */}
+      {selectedplayerdetail && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 max-h-[85vh] flex flex-col">
+            <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100 dark:border-slate-700">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {selectedplayerdetail.first_name} {selectedplayerdetail.last_name}
+                </h3>
+                <p className="text-xs text-slate-500">Storico Assenze e Infortuni</p>
+              </div>
+              <button 
+                onClick={() => setSelectedplayerdetail(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-700 pr-1">
+              {playerAbsencesDetails.length > 0 ? (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-900/50 text-slate-500 border-b border-slate-200 dark:border-slate-700">
+                      <th className="p-3 font-semibold">Data Allenamento</th>
+                      <th className="p-3 font-semibold text-center">Stato</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                    {playerAbsencesDetails.map((item, index) => (
+                      <tr key={index} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-medium text-slate-900 dark:text-white">
+                          {new Date(item.date).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold capitalize ${
+                            item.status === 'assente' 
+                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' 
+                              : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
+                          }`}>
+                            {item.status}
+                          </span>
+                          {item.note && <span className="block text-[10px] text-slate-400 mt-0.5">Nota: {item.note}</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="py-12 text-center text-slate-500 text-sm">
+                  Nessuna assenza o infortunio registrato per questo giocatore. 🎉
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-700 flex justify-end">
+              <button 
+                onClick={() => setSelectedplayerdetail(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-all"
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showsessionmodal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
