@@ -287,8 +287,6 @@ export default function App() {
           else if (att.status === 'absent') absent++;
           else if (att.status === 'late') late++;
           else if (att.status === 'injured') injured++;
-        } else {
-          absent++;
         }
       });
 
@@ -646,6 +644,7 @@ export default function App() {
                       <th className="p-4 font-semibold text-center">Presenti</th>
                       <th className="p-4 font-semibold text-center">Assenti</th>
                       <th className="p-4 font-semibold text-center">Ritardi</th>
+                      <th className="p-4 font-semibold text-center">Infortuni</th>
                       <th className="p-4 font-semibold text-center">% Presenza</th>
                     </tr>
                   </thead>
@@ -660,6 +659,7 @@ export default function App() {
                         <td className="p-4 text-center font-medium text-emerald-600">{stat.present}</td>
                         <td className="p-4 text-center font-medium text-rose-600">{stat.absent}</td>
                         <td className="p-4 text-center font-medium text-amber-600">{stat.late}</td>
+                        <td className="p-4 text-center font-medium text-indigo-600">{stat.injured}</td>
                         <td className="p-4 text-center font-bold text-slate-900 dark:text-white">{stat.rate}%</td>
                       </tr>
                     ))}
